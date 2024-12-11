@@ -45,6 +45,17 @@ iree_cc_binary(
     ::simple_mul_module_c
 )
 
+iree_cc_binary(
+  NAME
+    hello_world_two_devices
+  SRCS
+    "hello_world_two_devices.c"
+  DEPS
+    iree::runtime::unified
+    ::simple_mul_module_c
+    ::simple_mul_module_hip_c
+)
+
 iree_native_test(
   NAME
     "hello_world_terse_test"
@@ -60,6 +71,32 @@ iree_bytecode_module(
   C_IDENTIFIER
     "iree_runtime_demo_simple_mul_module"
   FLAGS
-    "--iree-hal-target-backends=vmvx"
+    "--iree-hal-target-backends=amd-aie"
+    "--iree-amdaie-target-device=npu1_4col"
+    "--iree-amdaie-lower-to-aie-pipeline=air"
+    "--iree-amdaie-tile-pipeline=pad-pack"
+    "--iree-amd-aie-peano-install-dir=c:/fortest/peano/llvm-aie"
+    "--iree-amd-aie-install-dir=C:/develop/iree-two-devices/iree-install"
+    "--iree-amd-aie-enable-chess=false"
+    "--iree-amdaie-enable-packet-flow=false"
+    "--iree-hal-dump-executable-files-to=c:/fortest/iree-outputSimple"
+    "--iree-amdaie-device-hal=xrt"
+    "--iree-hal-memoization=false"
+    "--iree-hal-indirect-command-buffers=false"
+    "--mlir-elide-resource-strings-if-larger=10"
+    "--iree-amd-aie-show-invoked-commands"
+  PUBLIC
+)
+
+iree_bytecode_module(
+  NAME
+    simple_mul_module_hip
+  SRC
+    "simple_mul.mlir"
+  C_IDENTIFIER
+    "iree_runtime_demo_simple_mul_module_hip"
+  FLAGS
+    "--iree-hal-target-device=hip"
+    "--iree-hip-target=gfx1103"
   PUBLIC
 )
