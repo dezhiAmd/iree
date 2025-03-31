@@ -10,6 +10,13 @@ message(STATUS "Enabling runtime tracing using the ${IREE_TRACING_PROVIDER} prov
 message(STATUS "Tracing mode set at ${IREE_TRACING_MODE}")
 
 if(${IREE_TRACING_PROVIDER} STREQUAL "console")
+cmake -G Ninja -B ../iree-build-trace -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo 
+# -DIREE_ENABLE_ASSERTIONS=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ 
+# -DIREE_ENABLE_RUNTIME_TRACING=ON -DIREE_BUILD_TRACY=ON 
+# -DIREE_ENABLE_LLD=ON -DIREE_BUILD_PYTHON_BINDINGS=ON -DPython3_EXECUTABLE="$(which python3)" 
+# -DIREE_TARGET_BACKEND_CUDA=OFF -DIREE_HAL_DRIVER_HIP=ON -DIREE_TARGET_BACKEND_ROCM=ON 
+# -DIREE_TRACING_PROVIDER=console
+  message(STATUS "Use console")
   iree_cc_library(
     NAME
       provider
@@ -68,4 +75,5 @@ else()
       provider
     PUBLIC
   )
+
 endif(IREE_ENABLE_RUNTIME_TRACING)
