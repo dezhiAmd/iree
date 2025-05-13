@@ -19,9 +19,60 @@ typedef struct iree_hal_hip_dispatch_thread_dispatch_t {
   void* user_data;
 } iree_hal_hip_dispatch_thread_dispatch_t;
 
-IREE_HAL_HIP_UTIL_TYPED_QUEUE_WRAPPER(
-    iree_hal_hip_dispatch_queue, iree_hal_hip_dispatch_thread_dispatch_t,
-    iree_hal_hip_dispatch_thread_default_queue_size);
+typedef struct iree_hal_hip_dispatch_queue_t {
+  iree_allocator_t allocator;
+  void* elements;
+  iree_host_size_t element_size;
+  iree_host_size_t element_count;
+  iree_host_size_t capacity;
+  iree_host_size_t head;
+  iree_alignas(iree_max_align_t) uint8_t initial_allocation[
+      iree_hal_hip_dispatch_thread_default_queue_size * sizeof(iree_hal_hip_dispatch_thread_dispatch_t)];
+} iree_hal_hip_dispatch_queue_t;
+
+static inline void iree_hal_hip_dispatch_queue_initialize(
+    iree_allocator_t allocator, iree_hal_hip_dispatch_queue_t* out_queue) {
+  iree_hal_hip_util_queue_initialize(
+      allocator, sizeof(iree_hal_hip_dispatch_thread_dispatch_t),
+      iree_hal_hip_dispatch_thread_default_queue_size,
+      (iree_hal_hip_util_queue_t*)out_queue);
+}
+
+static inline void iree_hal_hip_dispatch_queue_deinitialize(
+    iree_hal_hip_dispatch_queue_t* out_queue) {
+  iree_hal_hip_util_queue_deinitialize((iree_hal_hip_util_queue_t*)out_queue);
+}
+
+iree_status_t iree_hal_hip_dispatch_queue_push_back(
+    iree_hal_hip_dispatch_queue_t* queue,
+    iree_hal_hip_dispatch_thread_dispatch_t element) {
+  return iree_hal_hip_util_queue_push_back(
+      (iree_hal_hip_util_queue_t*)queue, &element);
+}
+
+void iree_hal_hip_dispatch_queue_pop_front(
+    iree_hal_hip_dispatch_queue_t* queue, iree_host_size_t count) {
+  iree_hal_hip_util_queue_pop_front((iree_hal_hip_util_queue_t*)queue, count);
+}
+
+iree_hal_hip_dispatch_thread_dispatch_t iree_hal_hip_dispatch_queue_at(
+    iree_hal_hip_dispatch_queue_t* queue, iree_host_size_t i) {
+  iree_hal_hip_dispatch_thread_dispatch_t t;
+  memcpy(&t,
+         iree_hal_hip_util_queue_at((iree_hal_hip_util_queue_t*)queue, i),
+         sizeof(iree_hal_hip_dispatch_thread_dispatch_t));
+  return t;
+}
+
+bool iree_hal_hip_dispatch_queue_empty(iree_hal_hip_dispatch_queue_t* queue) {
+  return queue->element_count == 0;
+}
+
+iree_host_size_t iree_hal_hip_dispatch_queue_count(
+    iree_hal_hip_dispatch_queue_t* queue) {
+  return queue->element_count;
+}
+
 
 typedef struct iree_hal_hip_dispatch_thread_t {
   iree_thread_t* thread;
@@ -44,19 +95,32 @@ static bool iree_hal_hip_dispatch_thread_has_request(void* user_data) {
   return has_request;
 }
 
+static bool dezhi1 = true;
+static bool dezhi2 = true;
+static bool dezhi3 = true;
+static bool dezhi4 = true;
+
 static int iree_hal_hip_dispatch_thread_main(void* param) {
   iree_hal_hip_dispatch_thread_t* thread =
       (iree_hal_hip_dispatch_thread_t*)param;
+  if (dezhi1)
+    printf("dezhi1: thread: %lu\n", pthread_self());
   bool exit = false;
   while (true) {
+    if (dezhi2)
+      printf("dezhi2: thread: %lu notification_await\n", pthread_self());
     iree_notification_await(&thread->notification,
                             &iree_hal_hip_dispatch_thread_has_request, thread,
                             iree_infinite_timeout());
 
+    if (dezhi3)
+        printf("dezhi3: thread: %lu test queue\n", pthread_self());
     iree_slim_mutex_lock(&thread->mutex);
     exit |= thread->do_exit;
     iree_status_t status = iree_status_clone(thread->failure_status);
     while (!iree_hal_hip_dispatch_queue_empty(&thread->queue)) {
+      if (dezhi4)
+        printf("dezhi4: thread: %lu queue not empty\n", pthread_self());
       iree_hal_hip_dispatch_thread_dispatch_t dispatch =
           iree_hal_hip_dispatch_queue_at(&thread->queue, 0);
       iree_hal_hip_dispatch_queue_pop_front(&thread->queue, 1);
